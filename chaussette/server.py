@@ -29,7 +29,7 @@ def main():
     parser = argparse.ArgumentParser(description='Run some watchers.')
     parser.add_argument('--port', type=int, default=8080)
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('--host', default='localhost')
+    group.add_argument('--host', default=None)
     group.add_argument('--fd', type=int, default=-1)
     group.add_argument('--backlog', type=int, default=2048)
     parser.add_argument('--backend', type=str, default='wsgiref',
@@ -61,8 +61,17 @@ def main():
 
     if args.fd != -1:
         host = 'fd://%d' % args.fd
-    else:
+    elif args.host:
         host = args.host
+    elif ('LISTEN_PID' in os.environ and 'LISTEN_FDS' in os.environ
+          and os.environ['LISTEN_PID'] == str(os.getpid())
+          and os.environ['LISTEN_FDS'] != '0'):
+        if os.environ['LISTEN_FDS'] != '1':
+            logger.warning('Chaussette supports only one fd, but got multiple, '
+                           'will listen only on the first')
+        host = 'fd://3'
+    else:
+        host = 'localhost'
 
     # Set CLOEXEC on the filedescriptor, so it won't leak to child processes
     if host.startswith('fd://'):
