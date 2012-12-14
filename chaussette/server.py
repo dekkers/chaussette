@@ -1,6 +1,7 @@
 import sys
 import os
 import argparse
+import fcntl
 
 from chaussette import logger as chaussette_logger
 from chaussette.util import import_string, configure_logger, LOG_LEVELS
@@ -62,6 +63,13 @@ def main():
         host = 'fd://%d' % args.fd
     else:
         host = args.host
+
+    # Set CLOEXEC on the filedescriptor, so it won't leak to child processes
+    if host.startswith('fd://'):
+        fd = int(host[5:])
+        flags = fcntl.fcntl(fd, fcntl.F_GETFD)
+        flags |= fcntl.FD_CLOEXEC
+        fcntl.fcntl(fd, fcntl.F_SETFD, flags)
 
     # pre-hook ?
     if args.pre_hook is not None:
